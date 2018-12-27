@@ -1,0 +1,555 @@
+/**
+ * Copyright (c) 2016, Juniper Networks, Inc.
+ * All rights reserved.
+ */
+
+syntax = "proto3";
+
+import "jnx_addr.proto";
+
+package routing;
+
+/**
+  * ----------------------------------------------------------------------------
+  * Different types of return codes to be sent back to client based on the
+  * operation was successful or not and if not, possibly more specific reasons
+  * as to why it failed.
+  * ----------------------------------------------------------------------------
+  */
+enum ReturnCode {
+    // Operation was executed successfully
+    RET_SUCCESS        =  0;
+    // General failure : operation not executed successfully
+    RET_FAILURE        =  1;
+    // Entry was not found
+    RET_NOT_FOUND      =  2;
+    // Invalid input paramters
+    RET_INVALID_PARAMS =  3;
+}
+
+ /*
+  * ---------------------------------------------------------------------------
+  * Route table 
+  * ---------------------------------------------------------------------------
+  */
+
+/**
+ * The table format allows the client to request the format that the
+ * server should use to represent tables in replies sent by the server
+ * to the client.
+ */
+enum RouteTableFormat {
+
+     /** The server will represent tables by name as strings */
+     TABLE_STRING  = 0;
+
+     /** The server will represent tables by RPD table ID */
+     TABLE_ID      = 1;
+}
+
+
+/*
+  * ----------------------------------------------------------------------------
+  * Route table name - A string formatted per JUNOS convention.
+  * ----------------------------------------------------------------------------
+  */
+
+/**
+ * Routing table (RIB) name uniquely identifying a route table,
+ * formatted as a string per JUNOS convention.
+ */
+message RouteTableName {
+    /** Table name. REQUIRED */
+    string name = 1;
+}
+
+/*
+  * ----------------------------------------------------------------------------
+  * Route table identifier - An integer value uniquely identifying a table.
+  * ----------------------------------------------------------------------------
+  */
+
+/**
+ * Routing table identifier as an integer value uniquely identifying a table.
+ */
+message RouteTableId {
+    /** Table identifier. REQUIRED */
+    uint32 id = 1;
+}
+
+/**
+ * Routing table (RIB), which may either be specified as a string or 
+ * RPD table ID. 
+ */
+message RouteTable {
+    oneof RtTableFormat {
+        /** Table id to which the route belongs */
+        RouteTableId    rtt_id    = 1;
+        /** Table name to which the route belongs */
+        RouteTableName  rtt_name  = 2;
+    }
+}
+
+/*
+  * ----------------------------------------------------------------------------
+  * Route prefix types
+  * ----------------------------------------------------------------------------
+  */
+
+/**
+ * Routing table destination address families.
+ */
+enum RouteAfType {
+
+     /** Unspecified */
+     RT_AF_UNSPEC    =  0;
+
+     /** IPv4 destination prefix */
+     RT_AF_INET      =  1;
+
+     /** IPv6 destination prefix */
+     RT_AF_INET6     =  2;
+
+     /** IPv4 VPN (L3VPN) destination prefix */
+     RT_AF_INETVPN   =  3;
+
+     /** IPv6 VPN (L3VPN) destination prefix */
+     RT_AF_INET6VPN  =  4;
+
+     /** IPv4 Labeled-Unicast destination prefix. */
+     RT_AF_LABELED_INET   =  5;
+
+     /** IPv6 Labeled-Unicast destination prefix. */
+     RT_AF_LABELED_INET6  =  6;
+
+     /** IPv4 SRTE destination prefix */
+     RT_AF_INET_SRTE      =  7;
+
+     /** IPv6 SRTE destination prefix */
+     RT_AF_INET6_SRTE     =  8;
+}
+
+/** RFC 4364 Route type 0: 2-byte AS and assigned number */
+message RdType0 {
+
+    /** 2 byte AS number */
+    uint32                  as_number       = 1;
+    /** 4 byte assigned number subfield */
+    uint32                  assigned_number = 2;
+}
+
+/** RFC 4364 Route type 1: IPv4 address and assigned number */
+message RdType1 {
+    /** 4 byte IP address */
+    jnxBase.IpAddress     ip_address      = 1;
+    /** 2 byte assigned number subfield */
+    uint32                assigned_number = 2;
+}
+
+/** RFC 4364 Route type 2: 4-byte AS and assigned number */
+message RdType2 {
+    /** 4 byte AS number */
+    uint32                as_number       = 1;
+    /* 2 byte assigned number subfield */
+    uint32                assigned_number = 2;
+}
+
+/**
+ * An RFC 4364 route distinguisher to distinguish customer VPN routes 
+ * within the BGP NLRIs. Valid RD can be type 0, type 1, or type 2.
+ */
+message RouteDistinguisher {
+    oneof RdFormat {
+        RdType0     rd0 = 1; /** Type 0 RD */
+	RdType1     rd1 = 2; /** Type 1 RD */
+	RdType2     rd2 = 3; /** Type 2 RD */
+    }
+}
+
+/**
+ * L3VPN route destination address prefix composed of a 
+ * route distinguisher (RD) and IP address.
+ */
+message L3vpnAddress {
+
+    /** Route distinguisher. REQUIRED */
+    RouteDistinguisher    rd = 1;
+
+    /** IPv4 or IPv6 VPN customer address. REQUIRED. */
+    jnxBase.IpAddress     vpn_addr = 2;
+}
+
+/**
+ * A single MPLS Label entry as defined by RFC 3032
+ */
+message LabelEntry {
+
+    /** Well-known label values defined by RFC 3032. These must only be
+     *  used in label stacks in accordance with the rules of RFC 3032. */
+    enum WellKnownLabels {
+
+        /** IPv4 Explicit NULL: valid only at bottom of stack */
+        IPV4_EXPLICIT_NULL_LABEL   = 0;
+
+        /** Router Alert: valid anywhere in a label stack except bottom */
+        ROUTER_ALERT_LABEL         = 1;
+
+        /** IPv6 Explict NULL: valid only at bottom of stack */
+        IPV6_EXPLICIT_NULL_LABEL   = 2;
+
+        /** Implicit NULL: See RFC 3032 */
+        IMPLICIT_NULL_LABEL        = 3;
+    }
+
+    /** One of either well_known_labels or else a valid 20-bit unsigned
+     *  label value that must be less than decimal value 1048576 and not
+     *  within the reserved label range of 4 through 15 (inclusive).
+     *  REQUIRED */
+    uint32 label                    = 1;
+
+    /** A valid 3-bit unsigned traffic class/QoS value less than decimal value 8.
+     *  Optional (defaults to 0). READ-ONLY */
+    uint32 traffic_class            = 2;
+
+    /** A valid 8-bit unsigned TTL value less than decimal value 256.
+     *  Optional (defaults to 0). READ-ONLY */
+    uint32 ttl                      = 3;
+
+    /** Indicates that this Label stack entry the bottom of the label
+     *  stack. Bottom-of-Stack will always be set by the library and must
+     *  never set by the client. READ-ONLY */
+    bool bottom_of_stack            = 4;
+}
+
+/**
+ * Label operations
+ */
+enum LabelOperation {
+    NOOP    = 0;
+    POP     = 1;
+    PUSH    = 2;
+    SWAP    = 3;
+}
+
+/**
+ * A single MPLS Label stack entry with the operation for the label entry
+ */
+message LabelStackEntry {
+    LabelOperation      opcode      = 1;
+    LabelEntry     label_entry = 2;
+}
+
+/**
+ * Holds the mpls label used to represent label address in route lookups
+ */
+message MplsAddress {
+    /**
+     * A valid 20-bit unsigned label value that must be less than decimal
+     * value 1048576 and not within the reserved label range of 4 through
+     * 15 (inclusive).
+     * REQUIRED
+     */
+    uint32  label = 1;
+}
+
+/**
+ * A label stack constructed according to the rules of RFC 3032.
+ */
+message LabelStack {
+
+    /** An ordered list of one or more label stack entries beginning with
+     *  the bottom of the stack and ending with the top of the stack.
+     *  REQUIRED (one or more entry) */
+    repeated LabelStackEntry entries = 1;
+}
+
+/*
+ * SR-TE address related definitions. Note currently only SegmentType1
+ * is supported.
+ */
+
+/**
+ * Segment Identifier (SID). Either 4 octet MPLS SID or a 16 octet IPv6 SID
+ * Currently IPv6 SID is not supported.
+ */
+message SidEntry {
+    oneof SidEntryType {
+
+	 /** MPLS label for the SID */
+	 LabelEntry  sid_label_entry  = 1;
+    }
+}
+
+/**
+ * Segment Type 1: SID only, in the form of MPLS Label
+ */
+message SegmentType1 {
+
+    /** MPLS label for the SID. REQUIRED */
+    LabelEntry  sid_label_entry = 1;
+}
+
+/**
+ * SR-TE Segment. Only SegemntType1 is currently supported.
+ * Other types are for internal use only.
+ */
+message SRTESegment {
+    oneof SRTEType {
+
+        /** Segment type1, only supported segment type at present. */
+        SegmentType1   segment_type1 = 1;
+    }
+}
+
+
+/**
+ * SR-TE Segment List.
+ */
+message SRTESegmentList {
+
+    /**
+     * Weight specifies the weight associated to a given segment list. The
+     * weight is used in order to apply weighted ECMP mechanism when steering
+     * traffic into a policy that includes multiple Segment Lists.
+     * This parameter is needed to be set only when > 1 segment list is set.
+     */
+    uint32              weight  = 1;
+
+    /**
+     * Segments, one or more segments can be programmed. REQUIRED.
+     * A maximum of 5 segements are supported.
+     */
+    repeated SRTESegment  segments = 2;
+}
+
+
+/**
+ * SR-TE Distinguisher
+ */
+message SRTEDistinguisher {
+     /**
+      * SR policy originator. This is a numeric value that the originator can
+      * use to make unique when there are mulitple occurances of same SR policy.
+      * There is no verification done for the value of this, it has to be set
+      * and should be a non zero value.
+      */
+     uint32 distinguisher = 1;
+}
+
+/**
+ * SR-TE Color
+ */
+message SRTEColor {
+     /**
+      * SR policy color. This is a value used to match destination prefix to the
+      * policy. All prefixes of a particular color value is steered into policy
+      * that has the same color.
+      */
+     uint32 color = 1;
+}
+
+/**
+ * SR-TE Binding SID. This is an optional parameter.
+ * Note IPv6 Binding SID not supported so in SidEntry only MPLS label SID is
+ * defined.
+ */
+message SRTEBindingSID {
+     /** Binding SID */
+     SidEntry  binding_sr_id  = 1;
+}
+
+
+/**
+ * SR-TE Address key fields
+ */
+message SRTEAddress {
+
+    /** Identifies endpoint of the policy, this is mandatory parameter */
+    jnxBase.IpAddress   destination   = 1;
+
+    /**
+     * value used to match destination prefix to the policy. All prefixes of a
+     * particular color value is steered into policy that has the same color
+     * value. This is a mandatory parameter.
+     */
+    SRTEColor              sr_color         = 2;
+
+    /**
+     * Value that uniquely identifies the policy in the context of
+     * <destination, color> tuple. SR policy originator can use this to make
+     * policy unique in terms of BGP NLRI by setting different values for
+     * multiple occurrences of same SR policy.
+     * This is a mandatory parameter.
+     */
+    SRTEDistinguisher      sr_distinguisher = 3;
+}
+
+/**
+ * SR-TE Route information like segments.
+ */
+message SRTERouteData {
+
+    /*
+     * Specifies the BSID of the path.
+     * Optional parameter, there is no default value.
+     */
+    SRTEBindingSID      binding_sid   = 1;
+
+    /*
+     * Preference value is used by receiver to select among different SR paths
+     * of the same SR policy. SR policies may be originated by ways other than
+     * BGP.
+     * Optional parameter, default is zero.
+     */
+
+    uint32              preference    = 2;
+
+    /*
+     * List of Explicit paths towards endpoint. REQUIRED parameter.
+     * One or more segment lists to program.
+     * Segment List entries. Mimimum one segment need to be set. A maximum of
+     * 8 segment list are supported.
+     */
+    repeated SRTESegmentList  segment_lists = 3;
+}
+
+/**
+ * Route data defined for each supported address family
+ */
+message AddressFamilySpecificData {
+     oneof RouteDataAf {
+	 /**
+	  * Address specific route data for IPv4 and IPv6 SRTE address families.
+	  * This has to be set when RoutePrefixAf is of type IPv4 and IPv6
+	  * SRTE address family.
+	  */
+	 SRTERouteData    srte_policy_data = 1;
+     }
+}
+
+/**
+ * Route destination prefix defined for each supported address family
+ */
+message RoutePrefix {
+    oneof RoutePrefixAf {
+
+        /** IPv4 destination prefix */
+        jnxBase.IpAddress     inet         = 1;
+
+        /** IPv6 destination prefix */
+	jnxBase.IpAddress     inet6        = 2;
+
+        /** IPv4 VPN (L3VPN) destination prefix */
+	L3vpnAddress          inetvpn      = 3;
+
+        /** IPv6 VPN (L3VPN) destination prefix */
+        L3vpnAddress          inet6vpn     = 4;
+
+        /** IPv4 Labeled-Unicast destination prefix. */
+        jnxBase.IpAddress     labeled_inet  = 5;
+
+        /** IPv6 Labeled-Unicast destination prefix. */
+        jnxBase.IpAddress     labeled_inet6 = 6;
+
+        /** IPv4 SR-TE policy prefix */
+        SRTEAddress          inet_srte_policy = 7;
+
+        /** IPv6 SR-TE policy prefix */
+        SRTEAddress          inet6_srte_policy = 8;
+    }
+}
+
+/**
+ * Label Entry defined above SR-TE definitions as it is used by SR-TE also.
+ */
+
+/**
+ * Network Address defined for each supported address family
+ */
+message NetworkAddress {
+    oneof Af {
+        /** IPv4 destination prefix */
+        jnxBase.IpAddress     inet         = 1;
+
+        /** IPv6 destination prefix */
+	jnxBase.IpAddress     inet6        = 2;
+
+        /**
+	 * Mpls label.
+	 * For modifying route table contents, the only valid prefix length is
+	 * 52 (20 bit label + 32 bit interface index). Interface index is
+	 * currently implicit and defaults to 0.
+	 * For route lookups, use a prefix length of 52 for exact lookups and
+	 * 0 for matching all the routes.
+	 */
+	MplsAddress	      mpls	   = 3;
+    }
+}
+
+/**
+ * Protocol types that define protocols that added the route.
+ * RTPROTO_OTHER denotes other internal protocols currently not exposed
+ * to API.
+ */
+enum RouteProtoType {
+    /** Matches any protocol */
+    ANY = 0;
+    /** route is directly connected */
+    DIRECT = 1;
+    /** route to local side of P2P interface */
+    LOCAL = 2;
+    /** route was installed in kernel previously */
+    KERNEL = 3;
+    /** route was received via a redirect */
+    REDIRECT = 4;
+    /** OSPF2 AS Internal routes */
+    OSPF = 5;
+    /** OSPF3 AS Internal routes */
+    OSPF3 = 6;
+    /** OSPF AS Internal routes */
+    OSPF_ANY = 7;
+    /** Routing Information protocol */
+    RIP = 8;
+    /** Routing Information protocol for v6 */    
+    RIPNG = 9;
+    /** Border gateway protocol */
+    BGP = 10;
+    /** route is static */
+    STATIC = 11;
+    /** IS-IS */
+    ISIS = 12;
+    /** For IGMP stuff */
+    IGMP = 13;
+    /** Aggregate route */
+    AGGREGATE = 14;
+    /** Distance Vector Multicast Routing Protocol */
+    DVMRP = 15;
+    /** Protocol Independent Multicast */
+    PIM = 16;
+    /** Multicast Source Discovery Protocol */
+    MSDP = 17;
+    /** MPLS switching */
+    MPLS = 18;
+    /** RSVP */
+    RSVP = 19;
+    /** Circuit Cross-Connect */
+    CCC = 20;
+    /** LDP */
+    LDP = 21;
+    /** VPN protocol, L3 */
+    VPN = 22;
+    /** MVPN protocol, L3 */
+    MVPN = 23;
+    /** multicast info */
+    MCAST = 24;
+    /** VPN protocol, L2 */
+    L2VPN = 25;
+    /** l2circuit protocol */
+    L2CKT = 26;
+    /** BGP Static */
+    BGP_STATIC = 27;
+    /** RIFT */
+    RIFT = 28;
+    /** Protocols not exposed and internal to Routing backend */
+    OTHER = 29;
+}

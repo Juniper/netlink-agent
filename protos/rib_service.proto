@@ -1,0 +1,756 @@
+/**
+ * Copyright (c) 2018, Juniper Networks, Inc.
+ * All rights reserved.
+ */
+
+syntax = "proto3";
+
+/*
+ * Depends on common JNX and RPD API definitions
+ */
+import "jnx_addr.proto";
+import "prpd_common.proto";
+
+package routing;
+
+/**
+  * APIs and object definitions for the RPD RIB Operations
+  */
+
+/**
+  * Route entry's unique fields typically used to match the route
+  */
+message RouteMatchFields {
+    /**
+     * Address of the route
+     * REQUIRED.
+     */
+    NetworkAddress  dest_prefix	    = 1;
+
+    /**
+     * Route prefix length
+     * REQUIRED.
+     */
+    uint32	    dest_prefix_len = 2;
+
+    /**
+     * Routing table to which the route belongs
+     * REQUIRED.
+     */
+    RouteTable	    table	    = 3;
+
+    /**
+     * Differentiate routes of same address set by application.
+     * OPTIONAL. Default value is 0. For non programmed routes
+     * cookie value returned in route get request will be 0.
+     */
+    uint64	    cookie	    = 4;
+}
+
+/**
+  * Route gateway contains the parameters which are needed to forward traffic to
+  * next router/host. Consists of gateway address, local address and interface.
+  */
+message RouteGateway {
+    /**
+     * Address of the gateway or peer
+     * REQUIRED
+     */
+    NetworkAddress       gateway_address  = 1;      // Address of nexthop gateway
+    /**
+     * Outgoing local interface name (IFL). If provided and router next-hop is
+     * built. If not provided, an indirect next-hop is built.
+     * OPTIONAL
+     */
+    string               interface_name   = 2;      // local interface name
+    /**
+     * Local interface address to be used. This is useful when app is not
+     * aware of the outgoing interface, but knows the IP address of the interface.
+     * Local address is used to select a suitable interface.
+     * OPTIONAL
+     */
+    NetworkAddress       local_address    = 3;      // local address on interface
+
+    /**
+     *	MPLS label stack. List of Stack Entries with each with an associated action
+     *  Entries are ordered in the same order as actions to be performed.
+     *
+     *  OPTIONAL
+     *  Note: The definition for a LabelStack can be found in the prpd_common API.
+     */
+    LabelStack		 label_stack  = 4;	    // mpls label stack
+
+    /**
+     * For a route next-hop with next-hop gateways, the gateway with the
+     * lowest weight is treated as primary path. If the primary next-hop
+     * goes down, the forwarding plane will automatically route traffic
+     * via the secondary next-hop gateway.
+     *
+     * When there are multiple next-hop gateways entries with same lowest
+     * weight, all of them are added to the ECMP nexthop if ECMP is configured.
+     *
+     * If weight is 0, it's considered as not specified.
+     * Valid value range is 1-65535.
+     *
+     * The default weight is 0 if it is not specified. 
+     * OPTIONAL
+     */
+
+    uint32		 weight		= 5;
+
+    /**
+     * When a route next-hop with multiple next-hop gateways, applying ECMP
+     * distributes traffic evenly across all the next-hop gateways.
+     *
+     * If traffic needs to be distributed unequally across multiple gateways,
+     * the bandwidth field is used to compute balance coefficients that
+     * determine the proportion of traffic sent via each gateway.
+     *
+     * Bandwidth is not an absolute value, but is relative. The proportion of
+     * traffic assigned to each gateway is determined using the following
+     * formula:
+     *
+     * (gateway bandwidth)/ (sum of bandwidths for all gateways).
+     *
+     * Valid range is 0 and above. Negative values are treated as 0.
+     *
+     * The default bandwidth is 0 if it is not specified.
+     * OPTIONAL
+     */
+
+    float		 bandwidth	= 6;
+}
+
+/**
+  * When a data traffic arrives on a router, route nexthop indicates the next
+  * router(s) to which the traffic is to be forwarded. This consists of
+  * list of gateways.
+  */
+message RouteNexthop {
+    /**
+     * List of nexthop gateways. JUNOS currently allows up to 64 gateways
+     * per next-hop
+     * OPTIONAL. defaults to a next-hop that blackholes the traffic
+     */
+    repeated   RouteGateway gateways  = 1;
+}
+
+/**
+ *	Route Preferences of the various route types
+ */
+enum RoutePreference {
+    option allow_alias  = true;
+    RTPREF_DIRECT       = 0;     /** Routes to interfaces */
+    RTPREF_STATIC       = 5;     /** Static routes */
+    RTPREF_OSPF         = 10;    /** OSPF Internal route */
+    RTPREF_LABELED_ISIS = 14;    /** IS-IS level 1 route */
+    RTPREF_ISIS_L1      = 15;    /** IS-IS level 1 route */
+    RTPREF_ISIS_L2      = 18;    /** IS-IS level 2 route */
+    RTPREF_RIP          = 100;   /** Berkeley RIP */
+    RTPREF_RIPNG        = 100;   /** Berkeley RIPng */
+    RTPREF_IGMP         = 115;   /** Internet Gatway Mgmt */
+    RTPREF_OSPF_ASE     = 150;   /** OSPF External route */
+    RTPREF_BGP_EXT      = 170;   /** Border Gateway Protocol - external peer */
+}
+
+message RouteAttributeUint32 {
+    /**
+     * Holds route attribute of unsigned 32 bit integer type.
+     */
+    uint32  value   = 1;
+}
+
+message RouteAttributes {
+    /**
+     * Route preference attributes are used by the route selection process to
+     * select the active route amongst the usable routes for a given
+     * destination.
+     *
+     * preferences are optional unsigned 32-bit integer values (range 0 to
+     * 2^32-1). Lower the value, more preferable is the route. Routes are
+     * sorted based on the preference array values.
+     *
+     * Note: Some preferences have special meaning in JUNOS.
+     *
+     * preferences[0] is treated as administrative distance and is same as
+     * preference field in the CLI. JUNOS assigns a default preference
+     * value based on the protocol.
+     *
+     * Note: Lowest preference value any programmed route can take is 5.
+     * Values less than 5 in update requests will be changed to 5.
+     *
+     * preferences[1] is same as preference2 in the CLI.
+     *
+     * For programmed routes, preference2 will default to 100, making them
+     * preferred over static routes added via CLI (without the optional
+     * preference2).
+     *
+     * By explicitly setting preference and prefernce2, applications can
+     * make programmed routes more/less desirable than other routes.
+     *
+     * It should be noted that BGP owned routes use preference2 for storing
+     * 1's complement of local preference, making routes with higher local
+     * preference value more preferable.
+     *
+     * At present, 2 preference values are allowed.
+     * OPTIONAL
+     */
+    map<uint32, RouteAttributeUint32> preferences = 1;
+
+    /**
+     * tags are optional unsigned 32-bit integer values (range 0 to 2^32-1)
+     * that can be associated with a route entry for use
+     * in policy matching.
+     * If tags is not set, no value will be set by default to tag/tag2.
+     *
+     * Tags do not directly influence the route selection process, but can be
+     * used by route policies to influence the route selection process.
+     *
+     * Note: Some of the protocols in JUNOS may read/update/advertise
+     * tag field contents.
+     *
+     * For example: For routes advertised into OSPF, tags[0] corresponds to the
+     * 32-bit tag field in OSPF external LSA packets and tags[1] corresponds
+     * to the area ID.
+     *
+     * For IS-IS, tags[0]/tags[1] corresponds to the 32-bit Administrative Tag
+     * Sub-TLV (RFC 5130).
+     *
+     * tags[0] and tags[1] correspond to the corresponding tag and tag2 in
+     * JUNOS CLI.
+     *
+     * At present, 2 tag values are supported.
+     * OPTIONAL
+     */
+    map<uint32, RouteAttributeUint32>	tags		= 2;
+
+    /**
+     * Colors are optional unsigned 32-bit integer values
+     * (range 0 to 2^32 -1) that can be associated with a route and can be
+     * used for policy matching. They are similar to route tags.
+     * If colors is not set, no value will be set by default to color/color2.
+     *
+     * Note: Some of the protocols in JUNOS may read/update/advertise
+     * color field contents.
+     * 
+     * RSVP may advertise colors[0] and colors[1] from IGP routes contents to RSVP
+     * peers in inter-as scenarios.
+     *
+     * colors[0] and colors[1] corresponds to the corresponding color and color2 in
+     * JUNOS CLI.
+     *
+     * At present, 2 color values are supported.
+     * OPTIONAL
+     */
+    map<uint32, RouteAttributeUint32>	colors		= 3;
+}
+
+/**
+  * Route entry with route address, mask and attributes
+  */
+message RouteEntry {
+    /**
+     * Route key attribute
+     * REQUIRED
+     */
+    RouteMatchFields    key	 = 1;
+    /**
+     * Nexthop details of the route
+     * REQUIRED
+     */
+    RouteNexthop        nexthop  = 2;
+    /**
+     * Protocol that added this route. Currently, this is only used in monitor
+     * reply. It cannot be used during RIB Add/modify/del calls as this should
+     * be set to the protocol adding the route and routes added via these APIs
+     * are always Static routes.
+     */
+    RouteProtoType          protocol = 3;
+    /**
+     * Route attributes are optional information associated with a route entry.
+     * They may be used in route selection and also by route policy engine.
+     * Some of these attributes may get advertised by protocols to their peers.
+     *
+     * OPTIONAL
+     */
+    RouteAttributes attributes = 4;
+}
+
+message RouteUpdateRequest {
+    /** One or more programmed routes to add, udpate, or modify.
+     *  REQUIRED */
+    repeated RouteEntry routes = 1;
+}
+
+message RouteRemoveRequest {
+    /** Route mate paramaters for one or more programmed routes to be deleted
+     *  REQUIRED */
+    repeated RouteMatchFields     keys	= 1;
+}
+
+/**
+ * Various ways to match a route for get requests
+ */
+enum RouteMatchType {
+    BEST	    = 0;
+    EXACT	    = 1;
+    EXACT_OR_LONGER = 2;
+}
+
+/**
+ * Route get operation request parameters.
+ */
+message RouteGetRequest {
+    /** Route matching parameters
+     *	REQUIRED */
+    RouteMatchFields    key			 = 1;
+
+    /** If match_type is EXACT only routes for the exact destination prefix
+     *  and prefix length will be matched.
+     *
+     *  If match_type is EXACT_OR_LONGER, routes for the given destination prefix
+     *  or longer prefixes will be matched.
+     *
+     *  If match_type is BEST, longest prefix match is performed on the prefix.
+     *
+     *  OPTIONAL, default is best
+     */
+    RouteMatchType	match_type		 = 2;
+
+    /** If active_only is TRUE, inactive and hidden routes for a matching
+     *  prefix will be omitted from the results. If FALSE, inactive
+     *  and hidden routes are also returned. Optional (default is FALSE) */
+    bool active_only                             = 3;
+
+    /** The format for IP addresses in the replies to this request.
+     *  Optional (default is string) */
+    jnxBase.AddressFormat reply_address_format   = 4;
+
+    /** The format to be used for route table in replies to this request
+     *  Optional (default is string) */
+    RouteTableFormat reply_table_format          = 5;
+
+    /** The maximum number of routes requested in each reply.
+     *  Replies will be streamed in multiple RPCs each having no more
+     *  routes than given by this value. Counts from 1 through the maximum of
+     *  1000 may be specified. A value of zero or above 1000 indcates that
+     *  the server will choose an appropriate. Optional (default 1) */
+    uint32 route_count                           = 6;
+}
+
+/** Possible return codes for route add/modify/update/remove operations. */
+enum RouteOperStatus {
+    /** Request successfully completed in full. */
+    SUCCESS                 = 0;
+
+    /** Request failed due to an internal server error. */
+    INTERNAL_ERROR          = 1;
+
+    /** The route service has not been initialized. */
+    NOT_INITIALIZED         = 2;
+
+    /** Request did not result in any operations. */
+    NO_OP                   = 3;
+
+    /** Request contained too many operations. */
+    TOO_MANY_OPS            = 4;
+
+    /** Request contained an invalid table. */
+    TABLE_INVALID           = 5;
+
+    /** Request contained a table that was not ready for operations. */
+    TABLE_NOT_READY         = 6;
+
+    /** Request contained an invalid destination address prefix. */
+    PREFIX_INVALID          = 7;
+
+    /** Request contained a destination prefix length too short for the
+     *  supplied address/NLRI. */
+    PREFIX_LEN_TOO_SHORT    = 8;
+
+    /** Request contained a destination prefix length too long for the
+     *  supplied address/NLRI. */
+    PREFIX_LEN_TOO_LONG     = 9;
+
+    /** The server did not have a valid gateway associated with the
+     *  client. */
+    GATEWAY_INVALID         = 10;
+
+    /** Request contained an invalid nexthop. */
+    NEXTHOP_INVALID         = 11;
+
+    /** Request contained a nexthop with an invalid address. */
+    NEXTHOP_ADDRESS_INVALID = 12;
+
+    /** Request to add paths exceeding maximum ECMP paths for a
+     *  destination. */
+    NEXTHOP_LIMIT_EXCEED      = 13;
+
+    /** Request contains a route that is already present in the table. */
+    ROUTE_EXISTS            = 14;
+
+    /** Request contains a route that is NOT present in the table. */
+    ROUTE_NOT_FOUND         = 15;
+
+    /** Request contains an invalid protocol. Only PROTO_UNSPECIFIED
+     *  or PROTO_BGP_STATIC are allowed in route change operations.
+     */
+    PROTOCOL_INVALID        = 16;
+
+    /** Request contains a route that is NOT present in the table. */
+    ROUTE_ADD_FAILED        = 17;
+
+    /** The protocol daemon is not initialized and ready to accept
+     *  route change operations. */
+    NOT_READY		    = 18;
+
+    /** Request cannot be serviced until current requests are processed. */
+    TRY_AGAIN               = 19;
+
+    /** Request contains a route_count that exceeds the max of 1000. */
+    ROUTE_COUNT_INVALID	    = 20;
+
+    /** Request contains a parameter that is not currently supported. */
+    REQUEST_UNSUPPORTED     = 21;
+
+    /** Request contains a parameter that is not valid. */
+    REQUEST_INVALID	    = 22;
+
+    /** Interface name is not valid. */
+    INTERFACE_INVALID	    = 23;
+
+    /** 
+     * Invalid paramsters for Route Monitor registration. This can be returned
+     * if a wrong value is set in the registration or requested operation is 
+     * invalid. For e.g. this error is returned when Route Monitor registration 
+     * API is called with operation > REGISTER_DEL. 
+     * This error will also be returned if a registration API is called for an 
+     * existing registration with a modified value of monitor_reply_route_count.
+     */
+    ROUTE_MONITOR_REGISTER_OPERATION_INVALID = 24;
+
+    /** 
+     * This error is returned when Route Monitor register API with delete
+     * operation is called for a table which was not registered for monitor
+     * using a add operation.
+     */
+    ROUTE_MONITOR_REGISTER_ENOENT = 25;
+
+    /** Route Monitor Policy invalid */
+    ROUTE_MONITOR_REGISTER_POLICY_INVALID = 26;
+
+    /**
+     * Route Monitor registration request has invalid monitor_reply_route_count. 
+     * This error is also returned if monitor_reply_route_count is changed for
+     * an existing registration.
+     */
+    ROUTE_MONITOR_REGISTER_REPLY_ROUTE_COUNT_INVALID = 27;
+
+    /** Route monitor registration for same table with same params exists. */
+    ROUTE_MONITOR_REGISTER_EXISTS = 28;
+
+    /** MPLS Label value is invalid. */
+    MPLS_LABEL_INVALID	    = 29;
+
+    /** MPLS Label stack operation(s) is invalid. */
+    MPLS_ACTION_INVALID	    = 30;
+}
+
+/**
+ * Route Monitor operations; matches with RPD_MSG_FLASH_REGISTER_REQUEST
+ */
+enum RouteMonitorOp {
+    REGISTER_NONE = 0;
+    REGISTER_ADD = 1;
+    REGISTER_DELETE = 2;
+}
+
+/**
+ * Operation type of routes replied in RouteMonitorReply; 
+ * matches RPD_ROUTE_FLASH_OP*.
+ */
+enum RouteMonitorRouteOp {
+    ROUTE_MONITOR_ROUTE_OP_NONE = 0;
+    ROUTE_MONITOR_ROUTE_OP_ADD = 1;
+    ROUTE_MONITOR_ROUTE_OP_MODIFY = 2;
+    ROUTE_MONITOR_ROUTE_OP_DELETE = 3;
+    ROUTE_MONITOR_ROUTE_OP_NO_ADVERTISE = 4;
+    ROUTE_MONITOR_ROUTE_OP_END_OF_TABLE = 5;
+}
+
+/**
+ * Route operation reply containing the status of the operation.
+ * Replies always returns the final status (either success or the first error
+ * encountered) and the number of routes that were successfully processed
+ * prior to any error or full completion of the request.
+ */
+message RouteOperReply {
+    /** The final return code for the request. */
+    RouteOperStatus status   = 1;
+
+    /** The number of requested operations for which the operation
+      * completed successfully. Note that in the case of remove
+      * operations with or_longer=TRUE or cookie=0, this is not the number of
+      * routes matched and removed.
+      */
+    uint32 operations_completed = 2;
+}
+
+/**
+ * Route get reply containing the status of the operation and the full or
+ * partial set of matching routes, depending on how many reply RPCs the
+ * stream of routes is split among.
+ */
+message RouteGetReply {
+    /** The final return code for the request. */
+    RouteOperStatus status	    = 1;
+
+    /** One or more matching routes. */
+    repeated RouteEntry routes	    = 2;
+}
+
+/**
+ * Policy to be used for filtering routes send in RouteMonitorReply. This policy 
+ * has to be configured using CLI or NETCONF as currently programmable APIs do
+ * not support configuration of policy statements.
+ * This is an optional parameter. If not set, then all routes for the registred
+ * table will be sent in RouteMonitorReply message.
+ */
+ 
+message RouteMonitorPolicy {
+    /** Policy name */
+     string  rt_monitor_policy = 1;
+}
+
+/**
+ * Flags that can be used to change the behavior of routes recevied via the
+ * RouteMonitorReply. This can be like requesting End of Record. 
+ * Matches RPD_MSG_FLASH_REGISTER_REQUEST*.
+ */
+message RouteMonitorRegFlags {
+    /** Register End of Record */
+    bool request_eor = 1;
+
+    /**  
+     * Requested by clients to NOT send them EOR , by default EOR will be
+     * sent to client.
+     */
+    bool no_eor_to_client = 2;
+
+    /** 
+     * clients can use this flag to inform server not send withdrawal messages
+     * when last filter is removed by this client for given table
+     */
+    bool request_no_withdrawal = 3;
+
+    /** 
+     * The following client identification is for backward compatibilty
+     * and not to be used by new JAPI clients.
+     */
+    /** To be set when register request is form Junos Process ESWD. */
+    bool request_from_eswd = 4;
+    /** To be set when register request is form Junos Process MCSNOOPD. */
+    bool request_from_mcsnoopd = 5;
+    /** To be set when register request is form Junos Process VRRPD. */
+    bool request_from_vrrpd = 6;
+
+    /**
+     * If this flag is set, client's re-registration triggers all routes to be
+     * notified once again.
+     */
+    bool request_force_re_notif = 7;
+}
+
+
+/**
+ * Request message to register for route monitoring. The registration denotes
+ * the routing table for which route monitoring is requested. 
+ * Parameters in the registration request like monitor_policy can be set to 
+ * influence which of the routes of the table are sent in the monitor reply
+ * message.
+ */
+message RouteMonitorRegRequest {
+    /** Name of the route table for which the route monitor is requested */
+    RouteTableName rt_tbl_name 	    = 1;
+
+    /** Monitor operation to be performed */
+    RouteMonitorOp monitor_op = 2;
+
+    /** Route Monitor flags */
+    RouteMonitorRegFlags monitor_flag = 3;
+
+    /** 
+     * By Default all routes of the table registered is sent in the reply
+     * message. Policy can be used for filtering which routes of the table are
+     * sent. For e.g. a policy can be defined using CLI to receive only static
+     * routes in the table.
+     */
+    RouteMonitorPolicy monitor_policy = 4;
+
+    /** Context expected by clients to be sent back in reply message */
+    uint32 monitor_ctx = 5;
+
+    /** 
+     * Number of routes to be packed in Monitor reply message. This packing
+     * is done only when a new rib walk is started till the End of table is
+     * reached. 
+     */
+    uint32 monitor_reply_route_count = 6;
+}
+
+/** 
+ * Route monitor entry which is sent to the client in the monitor reply 
+ * message.
+ */
+message RouteMonitorEntry {
+    /** The monitor operation */
+    RouteMonitorRouteOp monitor_rt_op = 1;
+
+    /** route entries that are in the monitor reply */
+    RouteEntry route      = 2;
+} 
+
+/** 
+ * Reply message which contains the routes of the table registered for
+ * monitoring.
+ */
+message RouteMonitorReply {
+    /** Return code to indicate operation status */
+    RouteOperStatus status = 1;
+
+    /** Context send by clients in the register request */
+    uint32 monitor_ctx = 2;
+
+    /** Route table to which the route entries of monitor_routes belong */
+    RouteTableName rt_tbl_name 	    = 3;
+
+    /** One or more route entries to be sent to client */
+    repeated RouteMonitorEntry monitor_routes      = 4;
+}
+
+service Rib {
+    /** Route Add operation
+     *
+     *  Add a static route to the routing table.
+     *
+     *  RouteAdd may be called multiple times for the same prefix to add
+     *  multiple paths with distinct cookie for the same destination.
+     *  If a matching route already exists in the given table, then an error
+     *  will be returned.
+     *
+     *  RoutingRouteOperRequest may contain from one to 1000 routes to be added.
+     *
+     *  If the request contains multiple routes, the routes will
+     *  be processed in the order given and the first error encountered will
+     *  cause the request to abort.
+     *  The API always returns the final status (success or first error
+     *  encountered) and the number of routes that were successfully created
+     *  prior to any error or full completion of the request.
+     */
+     rpc RouteAdd (RouteUpdateRequest) returns (RouteOperReply) {}
+
+    /** Route Modify operation
+     * Modify an existing programmed static route in the routing table. For
+     * each route in the request, if the key is matched, the matched route will
+     * be updated with the supplied route attributes.
+     *
+     * If a matching route does not exist in the given table, then an error
+     * will be returned.
+     *
+     * RouteUpdateRequest may contain from one to 1000 routes to be added.
+     * If the request contains multiple routes, the routes will be processed
+     * in the order given and the first error encountered will cause the
+     * request to abort.
+     * The API always returns the final status (success or first error
+     * encountered) and the number of routes that were successfully modified
+     * prior to any error or full completion of the request.
+     */
+    rpc RouteModify (RouteUpdateRequest) returns (RouteOperReply) {}
+
+    /** Route Update operation
+     *  Create a new static route if a matching route does not exist, OR
+     *  modify an existing static route if it is already present in the
+     *  routing table.
+     *  RouteUpdateRequest may contain from one to 1000 routes to be added.
+     *  If the request contains multiple routes, the routes will be processed
+     *  in the order given and the first error encountered will cause the
+     *  request to abort.
+     *  The API always returns the final status (success or first error
+     *  encountered) and the number of routes that were successfully modified
+     *  prior to any error or full completion of the request.
+     */
+    rpc RouteUpdate (RouteUpdateRequest) returns (RouteOperReply) {}
+
+    /** Route Remove operation
+     *
+     *  Remove a static route from the routing table.
+     *  RouteRemove may be called multiple times for the same prefix
+     *  to remove multiple paths with distinct path_cookie for the same
+     *  destination. (NOTE: cookie support not yet implemented)
+     *
+     *  The request may contain from one to 1000 routes  to be removed.
+     *
+     *  If the request contains multiple routes, the routes will
+     *  be processed in the order given and the first error encountered will
+     *  cause the request to abort.
+     *  The API always returns the final status (success or first error
+     *  encountered) and the number of routes that were successfully modified
+     *  prior to any error or full completion of the request.
+     */
+     rpc RouteRemove (RouteRemoveRequest) returns (RouteOperReply) {}
+
+    /** Route Get operation
+     *  Lookup a route from the routing table.
+     *  All match parameters are optional.
+     *  Match fields that are not specified or that
+     *  may match more than one route (e.g. a less-specific destination
+     *  prefix) may result in multiple routes being returned in the replies.
+     *
+     *  Responses are bulked for performance and the client can specify
+     *  maxmimum number of route entries that JUNOS can send in one response
+     *  message using route_count field. JUNOS may chose to pack less
+     *  number of entries than that client has specified.
+     *
+     *  Multiple route entries matching matching a given route prefix
+     *  may be be counted as one (if its last one in the response) and may
+     *  result in exceeding the specified route count.
+     *
+     *  Replies are streamed until all match routes have been sent. The
+     *  client will receive a final null message once all routes have
+     *  been received.
+     *  The server's walk of search results is not atomic so route changes
+     *  during streaming and consumption of replies may or may not be
+     *  reflected in the results.
+     *  See RouteGetReply.
+     */
+    rpc RouteGet (RouteGetRequest) returns (stream RouteGetReply) {}
+     
+    /**
+     * Register for route monitoring to monitor the route entries of a table.
+     * When clients register for a table all routes that passes policy are
+     * streamed to the client. After this the routes that get added or changed
+     * or deleted are streamed.
+     *
+     * Clients can register to more than one table for route monitoring. Each
+     * of these registrations will have a different stream on which the routes
+     * will be streamed. 
+     *
+     * Clients can also change registration parameters for the table. In this
+     * case the parameter will be re-applied for the table and the resulting
+     * routes of the table are streamed. For e.g if policy is added to the
+     * registration to noitfy only static routes, then all non static routes 
+     * that were sent before are re-sent with a delete monitor operation. 
+     * Subsequent monitor messages for the table will contain only static
+     * routes. 
+     * For the above case, streaming will happen on the new stream created for
+     * the fresh Register request sent. Streaming of routes on the old stream
+     * will stop.
+     *
+     * The reply is sent as stream and will be sent as long as monitor 
+     * registration is valid. Once the monitor registration is deleted, 
+     * then this streaming will be stopped.
+     */
+    rpc RouteMonitorRegister (RouteMonitorRegRequest) 
+	            returns (stream RouteMonitorReply) {}
+
+}

@@ -1,0 +1,25 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: nla
+  labels:
+    app: nla
+spec:
+  containers:
+  - name: nla
+    image: nlagent
+    args: ["-c", "/etc/config/nla.yaml", "-t", "3"]
+    imagePullPolicy: Never
+    securityContext:
+      privileged: true
+    volumeMounts:
+    - name: nla-config-mount
+      mountPath: /etc/config/
+  volumes:
+  - name: nla-config-mount
+    configMap:
+      name: nla-config
+      items:
+      - key: config
+        path: nla.yaml
+

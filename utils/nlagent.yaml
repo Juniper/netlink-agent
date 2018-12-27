@@ -1,0 +1,21 @@
+nlagent-modules :
+    - module         : NLA_KNLM
+
+    - module         : NLA_PRPD_CLIENT
+      server-address : 127.0.0.1
+      server-port    : 40051
+      notify-me :
+          - notify-events-from : NLA_FPM_CLIENT
+
+    - module         : NLA_FPM_CLIENT
+      server-address : 127.0.0.1
+      server-port    : 2620
+      policy :
+          - filter-protocol : 22
+          - set-protocol    : 0
+          - strip-rtattr    : 7
+          - strip-rtattr    : 12
+          - strip-rtattr    : 15
+          - strip-rtattr    : 20
+      notify-me :
+          - notify-events-from : NLA_KNLM

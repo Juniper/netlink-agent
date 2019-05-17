@@ -95,6 +95,6 @@ nlagent-modules :
           - notify-events-from : NLA_NLM_CLIENT
 ```
 
-## Demo setup for End to End Testing
+
 ![Demo](https://user-images.githubusercontent.com/20463666/57955747-86557900-78ab-11e9-9d07-b15b034a49fc.png)
 

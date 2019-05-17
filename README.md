@@ -103,9 +103,9 @@ nlagent-modules :
 ## Build
 Netlink agent is built when you run "make" in [Source directory](https://github.com/Juniper/netlink-agent).
 ## images
-Once the build is finished, release images cab be found under ship directory. The build process produces 
+Once the build is finished, release images can be found under ship directory. The build process produces 
   * A Netlink agent daemon, which can be run directly
-  * A Netlink agent docker container which can be used to run it on kubernetes using a [kubernetes Deployment](utils/kubectl.yaml)
+  * A Netlink agent docker container which can be used to run it on kubernetes using a [kubernetes Deployment yaml file](utils/kubectl.yaml)
 
 * Sample build log:
 ```

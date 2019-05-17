@@ -98,3 +98,185 @@ nlagent-modules :
 
 ![Demo](https://user-images.githubusercontent.com/20463666/57955747-86557900-78ab-11e9-9d07-b15b034a49fc.png)
 
+
+# Build & Run
+* Build: Netlink agent is built when you run "make" in [Source directory](https://github.com/Juniper/netlink-agent).
+* images : Once the build is finished, release images cab be found under ship directory.
+* Sample build log:
+```
+netlink-agent> ls 
+build
+Makefile
+nla_config.c
+nla_defs.h
+nla_externs.h
+nla_fpm_client.c
+nla_fpm.h
+nla_fpm_server.c
+nla_grpc.c
+nla_knlm.c
+nla_main.c
+nla_nlm_client.c
+nla_nlm_server.c
+nla_policy.c
+nla_prpd_client.c
+nla_util.c
+protos
+ship
+utils
+
+
+netlink-agent> make
+Creating directories
+Beginning release build
+Creating: protos/authentication_service.proto -> build/release/authentication_service.pb.cc
+protoc -I protos --cpp_out=build/release protos/authentication_service.proto
+         Create time: 00:00:00
+Compiling: build/release/authentication_service.pb.cc -> build/release/authentication_service.pb.o
+g++  -std=c++11 -Wall -Wextra -g -Wunused-parameter -Igrpc -O0 -I/usr/include/libnl3   -D NDEBUG -I . -I build/release -c build/release/authentication_service.pb.cc -o build/release/authentication_service.pb.o
+         Compile time: 00:00:05
+Creating: protos/jnx_addr.proto -> build/release/jnx_addr.pb.cc
+protoc -I protos --cpp_out=build/release protos/jnx_addr.proto
+         Create time: 00:00:00
+Compiling: build/release/jnx_addr.pb.cc -> build/release/jnx_addr.pb.o
+g++  -std=c++11 -Wall -Wextra -g -Wunused-parameter -Igrpc -O0 -I/usr/include/libnl3   -D NDEBUG -I . -I build/release -c build/release/jnx_addr.pb.cc -o build/release/jnx_addr.pb.o
+         Compile time: 00:00:02
+Creating: protos/prpd_common.proto -> build/release/prpd_common.pb.cc
+protoc -I protos --cpp_out=build/release protos/prpd_common.proto
+         Create time: 00:00:00
+Compiling: build/release/prpd_common.pb.cc -> build/release/prpd_common.pb.o
+g++  -std=c++11 -Wall -Wextra -g -Wunused-parameter -Igrpc -O0 -I/usr/include/libnl3   -D NDEBUG -I . -I build/release -c build/release/prpd_common.pb.cc -o build/release/prpd_common.pb.o
+         Compile time: 00:00:04
+Creating: protos/prpd_service.proto -> build/release/prpd_service.pb.cc
+protoc -I protos --cpp_out=build/release protos/prpd_service.proto
+         Create time: 00:00:00
+Compiling: build/release/prpd_service.pb.cc -> build/release/prpd_service.pb.o
+g++  -std=c++11 -Wall -Wextra -g -Wunused-parameter -Igrpc -O0 -I/usr/include/libnl3   -D NDEBUG -I . -I build/release -c build/release/prpd_service.pb.cc -o build/release/prpd_service.pb.o
+         Compile time: 00:00:03
+Creating: protos/rib_service.proto -> build/release/rib_service.pb.cc
+protoc -I protos --cpp_out=build/release protos/rib_service.proto
+         Create time: 00:00:00
+Compiling: build/release/rib_service.pb.cc -> build/release/rib_service.pb.o
+g++  -std=c++11 -Wall -Wextra -g -Wunused-parameter -Igrpc -O0 -I/usr/include/libnl3   -D NDEBUG -I . -I build/release -c build/release/rib_service.pb.cc -o build/release/rib_service.pb.o
+         Compile time: 00:00:05
+Creating: protos/authentication_service.proto -> build/release/authentication_service.grpc.pb.cc
+protoc -I protos --grpc_out=build/release --plugin=protoc-gen-grpc=`which grpc_cpp_plugin` protos/authentication_service.proto
+         Create time: 00:00:00
+Compiling: build/release/authentication_service.grpc.pb.cc -> build/release/authentication_service.grpc.pb.o
+g++  -std=c++11 -Wall -Wextra -g -Wunused-parameter -Igrpc -O0 -I/usr/include/libnl3   -D NDEBUG -I . -I build/release -c build/release/authentication_service.grpc.pb.cc -o build/release/authentication_service.grpc.pb.o
+         Compile time: 00:00:04
+Creating: protos/jnx_addr.proto -> build/release/jnx_addr.grpc.pb.cc
+protoc -I protos --grpc_out=build/release --plugin=protoc-gen-grpc=`which grpc_cpp_plugin` protos/jnx_addr.proto
+         Create time: 00:00:00
+Compiling: build/release/jnx_addr.grpc.pb.cc -> build/release/jnx_addr.grpc.pb.o
+g++  -std=c++11 -Wall -Wextra -g -Wunused-parameter -Igrpc -O0 -I/usr/include/libnl3   -D NDEBUG -I . -I build/release -c build/release/jnx_addr.grpc.pb.cc -o build/release/jnx_addr.grpc.pb.o
+         Compile time: 00:00:02
+Creating: protos/prpd_common.proto -> build/release/prpd_common.grpc.pb.cc
+protoc -I protos --grpc_out=build/release --plugin=protoc-gen-grpc=`which grpc_cpp_plugin` protos/prpd_common.proto
+         Create time: 00:00:00
+Compiling: build/release/prpd_common.grpc.pb.cc -> build/release/prpd_common.grpc.pb.o
+g++  -std=c++11 -Wall -Wextra -g -Wunused-parameter -Igrpc -O0 -I/usr/include/libnl3   -D NDEBUG -I . -I build/release -c build/release/prpd_common.grpc.pb.cc -o build/release/prpd_common.grpc.pb.o
+         Compile time: 00:00:03
+Creating: protos/prpd_service.proto -> build/release/prpd_service.grpc.pb.cc
+protoc -I protos --grpc_out=build/release --plugin=protoc-gen-grpc=`which grpc_cpp_plugin` protos/prpd_service.proto
+         Create time: 00:00:00
+Compiling: build/release/prpd_service.grpc.pb.cc -> build/release/prpd_service.grpc.pb.o
+g++  -std=c++11 -Wall -Wextra -g -Wunused-parameter -Igrpc -O0 -I/usr/include/libnl3   -D NDEBUG -I . -I build/release -c build/release/prpd_service.grpc.pb.cc -o build/release/prpd_service.grpc.pb.o
+         Compile time: 00:00:03
+Creating: protos/rib_service.proto -> build/release/rib_service.grpc.pb.cc
+protoc -I protos --grpc_out=build/release --plugin=protoc-gen-grpc=`which grpc_cpp_plugin` protos/rib_service.proto
+         Create time: 00:00:00
+Compiling: build/release/rib_service.grpc.pb.cc -> build/release/rib_service.grpc.pb.o
+g++  -std=c++11 -Wall -Wextra -g -Wunused-parameter -Igrpc -O0 -I/usr/include/libnl3   -D NDEBUG -I . -I build/release -c build/release/rib_service.grpc.pb.cc -o build/release/rib_service.grpc.pb.o
+         Compile time: 00:00:06
+Compiling: nla_main.c -> build/release/nla_main.o
+g++  -std=c++11 -Wall -Wextra -g -Wunused-parameter -Igrpc -O0 -I/usr/include/libnl3   -D NDEBUG -I . -I build/release -MP -MMD -c nla_main.c -o build/release/nla_main.o
+         Compile time: 00:00:01
+Compiling: nla_util.c -> build/release/nla_util.o
+g++  -std=c++11 -Wall -Wextra -g -Wunused-parameter -Igrpc -O0 -I/usr/include/libnl3   -D NDEBUG -I . -I build/release -MP -MMD -c nla_util.c -o build/release/nla_util.o
+         Compile time: 00:00:00
+Compiling: nla_prpd_client.c -> build/release/nla_prpd_client.o
+g++  -std=c++11 -Wall -Wextra -g -Wunused-parameter -Igrpc -O0 -I/usr/include/libnl3   -D NDEBUG -I . -I build/release -MP -MMD -c nla_prpd_client.c -o build/release/nla_prpd_client.o
+         Compile time: 00:00:00
+Compiling: nla_policy.c -> build/release/nla_policy.o
+g++  -std=c++11 -Wall -Wextra -g -Wunused-parameter -Igrpc -O0 -I/usr/include/libnl3   -D NDEBUG -I . -I build/release -MP -MMD -c nla_policy.c -o build/release/nla_policy.o
+         Compile time: 00:00:00
+Compiling: nla_nlm_server.c -> build/release/nla_nlm_server.o
+g++  -std=c++11 -Wall -Wextra -g -Wunused-parameter -Igrpc -O0 -I/usr/include/libnl3   -D NDEBUG -I . -I build/release -MP -MMD -c nla_nlm_server.c -o build/release/nla_nlm_server.o
+         Compile time: 00:00:01
+Compiling: nla_nlm_client.c -> build/release/nla_nlm_client.o
+g++  -std=c++11 -Wall -Wextra -g -Wunused-parameter -Igrpc -O0 -I/usr/include/libnl3   -D NDEBUG -I . -I build/release -MP -MMD -c nla_nlm_client.c -o build/release/nla_nlm_client.o
+         Compile time: 00:00:00
+Compiling: nla_knlm.c -> build/release/nla_knlm.o
+g++  -std=c++11 -Wall -Wextra -g -Wunused-parameter -Igrpc -O0 -I/usr/include/libnl3   -D NDEBUG -I . -I build/release -MP -MMD -c nla_knlm.c -o build/release/nla_knlm.o
+         Compile time: 00:00:00
+Compiling: nla_grpc.c -> build/release/nla_grpc.o
+g++  -std=c++11 -Wall -Wextra -g -Wunused-parameter -Igrpc -O0 -I/usr/include/libnl3   -D NDEBUG -I . -I build/release -MP -MMD -c nla_grpc.c -o build/release/nla_grpc.o
+         Compile time: 00:00:07
+Compiling: nla_fpm_server.c -> build/release/nla_fpm_server.o
+g++  -std=c++11 -Wall -Wextra -g -Wunused-parameter -Igrpc -O0 -I/usr/include/libnl3   -D NDEBUG -I . -I build/release -MP -MMD -c nla_fpm_server.c -o build/release/nla_fpm_server.o
+         Compile time: 00:00:00
+Compiling: nla_fpm_client.c -> build/release/nla_fpm_client.o
+g++  -std=c++11 -Wall -Wextra -g -Wunused-parameter -Igrpc -O0 -I/usr/include/libnl3   -D NDEBUG -I . -I build/release -MP -MMD -c nla_fpm_client.c -o build/release/nla_fpm_client.o
+         Compile time: 00:00:00
+Compiling: nla_config.c -> build/release/nla_config.o
+g++  -std=c++11 -Wall -Wextra -g -Wunused-parameter -Igrpc -O0 -I/usr/include/libnl3   -D NDEBUG -I . -I build/release -MP -MMD -c nla_config.c -o build/release/nla_config.o
+         Compile time: 00:00:00
+Linking: ship/release/nlagent
+g++ build/release/authentication_service.pb.o build/release/jnx_addr.pb.o build/release/prpd_common.pb.o build/release/prpd_service.pb.o build/release/rib_service.pb.o build/release/authentication_service.grpc.pb.o build/release/jnx_addr.grpc.pb.o build/release/prpd_common.grpc.pb.o build/release/prpd_service.grpc.pb.o build/release/rib_service.grpc.pb.o build/release/nla_main.o build/release/nla_util.o build/release/nla_prpd_client.o build/release/nla_policy.o build/release/nla_nlm_server.o build/release/nla_nlm_client.o build/release/nla_knlm.o build/release/nla_grpc.o build/release/nla_fpm_server.o build/release/nla_fpm_client.o build/release/nla_config.o  -L/usr/local/lib -lpthread -lprotobuf -Wl,--no-as-needed -lgrpc++_reflection -lgrpc++ -lgrpc -Wl,--as-needed -ldl -lz -levent -lyaml -lnl-route-3 -lnl-3    -o ship/release/nlagent
+         Link time: 00:00:01
+Packaging: ship/release/nlagent-docker.tar
+`/lib/x86_64-linux-gnu/libpthread.so.0' -> `build/release/nlagent-docker/lib/libpthread.so.0'
+`/usr/local/lib/libprotobuf.so.17' -> `build/release/nlagent-docker/lib/libprotobuf.so.17'
+`/usr/local/lib/libgrpc++_reflection.so.1' -> `build/release/nlagent-docker/lib/libgrpc++_reflection.so.1'
+`/usr/local/lib/libgrpc++.so.1' -> `build/release/nlagent-docker/lib/libgrpc++.so.1'
+`/usr/local/lib/libgrpc.so.6' -> `build/release/nlagent-docker/lib/libgrpc.so.6'
+`/usr/lib/libevent-2.0.so.5' -> `build/release/nlagent-docker/lib/libevent-2.0.so.5'
+`/usr/lib/x86_64-linux-gnu/libyaml-0.so.2' -> `build/release/nlagent-docker/lib/libyaml-0.so.2'
+`/usr/lib/libnl-route-3.so.200' -> `build/release/nlagent-docker/lib/libnl-route-3.so.200'
+`/usr/lib/libnl-3.so.200' -> `build/release/nlagent-docker/lib/libnl-3.so.200'
+`/usr/lib/x86_64-linux-gnu/libstdc++.so.6' -> `build/release/nlagent-docker/lib/libstdc++.so.6'
+`/lib/x86_64-linux-gnu/libgcc_s.so.1' -> `build/release/nlagent-docker/lib/libgcc_s.so.1'
+`/lib/x86_64-linux-gnu/libc.so.6' -> `build/release/nlagent-docker/lib/libc.so.6'
+`/usr/local/lib/libz.so.1' -> `build/release/nlagent-docker/lib/libz.so.1'
+`/lib/x86_64-linux-gnu/librt.so.1' -> `build/release/nlagent-docker/lib/librt.so.1'
+`/lib/x86_64-linux-gnu/libm.so.6' -> `build/release/nlagent-docker/lib/libm.so.6'
+/lib64 -> build/release/nlagent-docker/lib64
+`/lib64/ld-linux-x86-64.so.2' -> `build/release/nlagent-docker/lib64/ld-linux-x86-64.so.2'
+nlagent-docker/
+nlagent-docker/config/
+nlagent-docker/config/nlagent.yaml
+nlagent-docker/Dockerfile
+nlagent-docker/lib/
+nlagent-docker/lib/libgrpc++.so.1
+nlagent-docker/lib/libgcc_s.so.1
+nlagent-docker/lib/libpthread.so.0
+nlagent-docker/lib/libnl-3.so.200
+nlagent-docker/lib/libstdc++.so.6
+nlagent-docker/lib/libgrpc++_reflection.so.1
+nlagent-docker/lib/libc.so.6
+nlagent-docker/lib/libgrpc.so.6
+nlagent-docker/lib/libnl-route-3.so.200
+nlagent-docker/lib/libm.so.6
+nlagent-docker/lib/libevent-2.0.so.5
+nlagent-docker/lib/libyaml-0.so.2
+nlagent-docker/lib/libprotobuf.so.17
+nlagent-docker/lib/libz.so.1
+nlagent-docker/lib/librt.so.1
+nlagent-docker/lib64/
+nlagent-docker/lib64/ld-linux-x86-64.so.2
+nlagent-docker/usr/
+nlagent-docker/usr/sbin/
+nlagent-docker/usr/sbin/nlagent
+Making symlink: nlagent -> ship/release/nlagent
+Making symlink: nlagent-docker.tar -> ship/release/nlagent-docker.tar
+Total build time: 00:00:47
+
+netlink-agent> cd ship/release/
+netlink-agent/ship/release> ls
+nlagent           
+nlagent-docker.tar
+
+
+```
+    

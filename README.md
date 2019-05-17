@@ -20,39 +20,80 @@ It acts an agent to these external entities to aid them in converting Netlink me
 
 
 # Netlink-agent Modules
-## KERNEL Module
+### KERNEL Module
 Interacts with Kernel
 - listens to route updates from Linux kernel over Netlink socket
 - Can send route updates to Linux kernel over Netlink socket
 
-## PRPD Client
+### PRPD Client
 Talks to JUNOS routing daemon (RPD) using GRPC +  Protobuff semantics*
 - Add Routes to JUNOS routing daemon (RPD)
 - Can be enhanced Listen to Route Flash from JUNOS routing daemon (RPD).
 
-## FPM Client
+### FPM Client
 Fib Push/Pull Manager client
 - Establish connection with FPM server
 - Send data to FPM server with FPM header
 - Receive data from FPM server, and strip of FPM header
 
-## FPM Server
+### FPM Server
 Fib Push/Pull Manager Server
 - Establish connection with FPM client
 - Send data to FPM client with FPM header
 - Receive data from FPM client, and strip of FPM header
 
-## NLM Client
+### NLM Client
 Netlink client
 - Establish connection with Netlink server
 - Send Netlink messages to Netlink server.
 - Receive data from Netlink server
 
-## NLM Server
+### NLM Server
 Netlink Server
 - Establish connection with Netlink client
 - Send Netlink messages to client.
 - Receive data from Netlink client
 
 
+
+# Demo
+## [yaml configuration file](utils/nlagent_e2e_test.yaml)
+```
+nlagent-modules :
+
+    - module         : NLA_KNLM
+
+    - module         : NLA_NLM_CLIENT
+      server-address : 127.0.0.1
+      server-port    : 11111
+      notify-me :
+          - notify-events-from : NLA_KNLM
+
+    - module         : NLA_FPM_CLIENT
+      server-address : 127.0.0.1
+      server-port    : 22222
+      notify-me :
+          - notify-events-from : NLA_NLM_SERVER
+
+    - module         : NLA_FPM_SERVER
+      server-address : 127.0.0.1
+      server-port    : 22222
+      notify-me :
+          - notify-events-from : NLA_FPM_SERVER
+
+    - module         : NLA_NLM_SERVER
+      server-address : 127.0.0.1
+      server-port    : 11111
+      notify-me :
+          - notify-events-from : NLA_FPM_CLIENT
+
+
+    - module         : NLA_PRPD_CLIENT
+      server-address : 10.102.177.82
+      server-port    : 40051
+      notify-me :
+          - notify-events-from : NLA_NLM_CLIENT
+```
+
+## Demo setup
 

@@ -15,6 +15,8 @@ It acts an agent to these external entities to aid them in converting Netlink me
    - Connection tracking and 
    - Requesting flash from modules based on Connection state
 
+# Netlink-agent module Interaction
+![Module interaction](https://user-images.githubusercontent.com/20463666/57955144-e4815c80-78a9-11e9-88d3-2943b2c35966.png)
 
 
 # Netlink-agent Modules

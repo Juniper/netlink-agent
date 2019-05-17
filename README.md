@@ -100,11 +100,12 @@ nlagent-modules :
 
 
 # Build & Run
-* Build : Netlink agent is built when you run "make" in [Source directory](https://github.com/Juniper/netlink-agent).
-* images : Once the build is finished, release images cab be found under ship directory. 
-The build process produces 
+## Build
+Netlink agent is built when you run "make" in [Source directory](https://github.com/Juniper/netlink-agent).
+## images
+Once the build is finished, release images cab be found under ship directory. The build process produces 
   * A Netlink agent daemon, which can be run directly
-  * A Netlink agent docker container which can be used to run it on kubernetes using a [kubernetes Deployment](https://github.com/Juniper/netlink-agent/utils/kubectl.yaml)
+  * A Netlink agent docker container which can be used to run it on kubernetes using a [kubernetes Deployment](utils/kubectl.yaml)
 
 * Sample build log:
 ```
@@ -282,5 +283,122 @@ nlagent
 nlagent-docker.tar
 
 
+```
+
+
+* Filesystem view once build is done :
+```
+netlink-agent> tree
++-- build
+¦   +-- release
+¦       +-- authentication_service.grpc.pb.cc
+¦       +-- authentication_service.grpc.pb.h
+¦       +-- authentication_service.grpc.pb.o
+¦       +-- authentication_service.pb.cc
+¦       +-- authentication_service.pb.h
+¦       +-- authentication_service.pb.o
+¦       +-- jnx_addr.grpc.pb.cc
+¦       +-- jnx_addr.grpc.pb.h
+¦       +-- jnx_addr.grpc.pb.o
+¦       +-- jnx_addr.pb.cc
+¦       +-- jnx_addr.pb.h
+¦       +-- jnx_addr.pb.o
+¦       +-- nla_config.d
+¦       +-- nla_config.o
+¦       +-- nla_fpm_client.d
+¦       +-- nla_fpm_client.o
+¦       +-- nla_fpm_server.d
+¦       +-- nla_fpm_server.o
+¦       +-- nla_grpc.d
+¦       +-- nla_grpc.o
+¦       +-- nla_knlm.d
+¦       +-- nla_knlm.o
+¦       +-- nla_main.d
+¦       +-- nla_main.o
+¦       +-- nla_nlm_client.d
+¦       +-- nla_nlm_client.o
+¦       +-- nla_nlm_server.d
+¦       +-- nla_nlm_server.o
+¦       +-- nla_policy.d
+¦       +-- nla_policy.o
+¦       +-- nla_prpd_client.d
+¦       +-- nla_prpd_client.o
+¦       +-- nla_util.d
+¦       +-- nla_util.o
+¦       +-- prpd_common.grpc.pb.cc
+¦       +-- prpd_common.grpc.pb.h
+¦       +-- prpd_common.grpc.pb.o
+¦       +-- prpd_common.pb.cc
+¦       +-- prpd_common.pb.h
+¦       +-- prpd_common.pb.o
+¦       +-- prpd_service.grpc.pb.cc
+¦       +-- prpd_service.grpc.pb.h
+¦       +-- prpd_service.grpc.pb.o
+¦       +-- prpd_service.pb.cc
+¦       +-- prpd_service.pb.h
+¦       +-- prpd_service.pb.o
+¦       +-- rib_service.grpc.pb.cc
+¦       +-- rib_service.grpc.pb.h
+¦       +-- rib_service.grpc.pb.o
+¦       +-- rib_service.pb.cc
+¦       +-- rib_service.pb.h
+¦       +-- rib_service.pb.o
+¦       +-- nlagent-docker
+¦           +-- config
+¦           ¦   +-- nlagent.yaml
+¦           +-- Dockerfile
+¦           +-- lib
+¦           ¦   +-- libc.so.6
+¦           ¦   +-- libevent-2.0.so.5
+¦           ¦   +-- libgcc_s.so.1
+¦           ¦   +-- libgrpc++_reflection.so.1
+¦           ¦   +-- libgrpc++.so.1
+¦           ¦   +-- libgrpc.so.6
+¦           ¦   +-- libm.so.6
+¦           ¦   +-- libnl-3.so.200
+¦           ¦   +-- libnl-route-3.so.200
+¦           ¦   +-- libprotobuf.so.17
+¦           ¦   +-- libpthread.so.0
+¦           ¦   +-- librt.so.1
+¦           ¦   +-- libstdc++.so.6
+¦           ¦   +-- libyaml-0.so.2
+¦           ¦   +-- libz.so.1
+¦           +-- lib64
+¦           ¦   +-- ld-linux-x86-64.so.2
+¦           +-- usr
+¦               +-- sbin
+¦                   +-- nlagent
++-- Makefile
++-- nla_config.c
++-- nla_defs.h
++-- nla_externs.h
++-- nla_fpm_client.c
++-- nla_fpm.h
++-- nla_fpm_server.c
++-- nlagent -> ship/release/nlagent
++-- nlagent-docker.tar -> ship/release/nlagent-docker.tar
++-- nla_grpc.c
++-- nla_knlm.c
++-- nla_main.c
++-- nla_nlm_client.c
++-- nla_nlm_server.c
++-- nla_policy.c
++-- nla_prpd_client.c
++-- nla_util.c
++-- protos
+¦   +-- authentication_service.proto
+¦   +-- jnx_addr.proto
+¦   +-- prpd_common.proto
+¦   +-- prpd_service.proto
+¦   +-- rib_service.proto
++-- utils
+¦   +-- Dockerfile
+¦   +-- kubectl.yaml
+¦   +-- nlagent_e2e_test.yaml
+¦   +-- nlagent.yaml
++-- ship
+    +-- release
+        +-- nlagent
+        +-- nlagent-docker.tar
 ```
     

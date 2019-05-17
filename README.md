@@ -401,4 +401,187 @@ netlink-agent> tree
         +-- nlagent
         +-- nlagent-docker.tar
 ```
-    
+
+
+# Running Netlink-agent as a docker container on kubernetes.
+Copy the nlagent-docker.tar on the kubernetes and untar it, and cd to nlagent-docker directory.
+
+## Build nlagent docker image from Dockerfile
+```
+nlagent-docker> ls
+config
+Dockerfile
+lib
+lib64
+usr
+
+nlagent-docker> docker build -t nlagent .
+```
+
+## Create a kubernetes config-map for nlagent docker
+```
+nlagent-docker> cat config/nlagent.yaml
+nlagent-modules :
+    - module         : NLA_KNLM
+
+    - module         : NLA_PRPD_CLIENT
+      server-address : 127.0.0.1
+      server-port    : 40051
+      notify-me :
+          - notify-events-from : NLA_FPM_CLIENT
+
+    - module         : NLA_FPM_CLIENT
+      server-address : 10.102.177.82
+      server-port    : 2620
+      policy :
+          - filter-protocol : 22
+          - set-protocol    : 0
+          - strip-rtattr    : 7
+          - strip-rtattr    : 12
+          - strip-rtattr    : 15
+          - strip-rtattr    : 20
+      notify-me :
+          - notify-events-from : NLA_KNLM
+
+
+nlagent-docker> kubectl create configmap nla-config --from-file=config=config/nlagent.yaml
+configmap/nla-config created
+
+
+nlagent-docker> kubectl describe configmaps
+Name:         nla-config
+Namespace:    default
+Labels:       <none>
+Annotations:  <none>
+
+Data
+====
+config:
+----
+nlagent-modules :
+    - module         : NLA_KNLM
+
+    - module         : NLA_PRPD_CLIENT
+      server-address : 127.0.0.1
+      server-port    : 40051
+      notify-me :
+          - notify-events-from : NLA_FPM_CLIENT
+
+    - module         : NLA_FPM_CLIENT
+      server-address : 10.102.177.82
+      server-port    : 2620
+      policy :
+          - filter-protocol : 22
+          - set-protocol    : 0
+          - strip-rtattr    : 7
+          - strip-rtattr    : 12
+          - strip-rtattr    : 15
+          - strip-rtattr    : 20
+      notify-me :
+          - notify-events-from : NLA_KNLM
+
+Events:  <none>
+```
+
+## Bring up a docker container on kubernetes
+### kubectl.yaml
+[download the kubernetes deployment yaml file](utils/kubectl.yaml)
+
+```
+nlagent-docker> cat kubectl.yaml 
+apiVersion: v1
+kind: Pod
+metadata:
+  name: nla
+  labels:
+    app: nla
+spec:
+  containers:
+  - name: nla
+    image: nlagent
+    args: ["-c", "/etc/config/nla.yaml", "-t", "3"]
+    imagePullPolicy: Never
+    securityContext:
+      privileged: true
+    volumeMounts:
+    - name: nla-config-mount
+      mountPath: /etc/config/
+  volumes:
+  - name: nla-config-mount
+    configMap:
+      name: nla-config
+      items:
+      - key: config
+        path: nla.yaml
+
+
+nlagent-docker> kubectl create -f kubectl.yaml
+pod/nla created
+
+
+nlagent-docker> kubectl get pod -o wide
+NAME                       READY   STATUS    RESTARTS   AGE   IP            NODE               NOMINATED NODE
+nla                        2/2     Running   2          24h   10.244.1.15   kubernetes-slave   <none>
+
+
+nlagent-docker> kubectl describe pod nla
+Name:               nla
+Namespace:          default
+Priority:           0
+PriorityClassName:  <none>
+Node:               kubernetes-slave/10.102.179.115
+Start Time:         Mon, 03 Dec 2018 16:21:05 -0800
+Labels:             app=nla
+Annotations:        <none>
+Status:             Running
+IP:                 10.244.1.13
+Containers:
+  nla:
+    Container ID:  docker://09dbd014a686849d522e23acab454da80eb9d3763182f8e17aa9aabd91c977a0
+    Image:         nlagent
+    Image ID:      docker://sha256:1d71a03b5ff58f363d2f65511c627e09bbb043f67c2d073c76e1d0b4d699852f
+    Port:          <none>
+    Host Port:     <none>
+    Args:
+      -c
+      /etc/config/nla.yaml
+      -t
+      3
+    State:          Running
+      Started:      Mon, 03 Dec 2018 16:21:08 -0800
+    Ready:          True
+    Restart Count:  0
+    Environment:    <none>
+    Mounts:
+      /etc/config/ from nla-config-mount (rw)
+      /var/run/secrets/kubernetes.io/serviceaccount from default-token-vhfr7 (ro)
+Conditions:
+  Type              Status
+  Initialized       True
+  Ready             True
+  ContainersReady   True
+  PodScheduled      True
+Volumes:
+  nla-config-mount:
+    Type:      ConfigMap (a volume populated by a ConfigMap)
+    Name:      nla-config
+    Optional:  false
+  default-token-vhfr7:
+    Type:        Secret (a volume populated by a Secret)
+    SecretName:  default-token-vhfr7
+    Optional:    false
+QoS Class:       BestEffort
+Node-Selectors:  <none>
+Tolerations:     node.kubernetes.io/not-ready:NoExecute for 300s
+                 node.kubernetes.io/unreachable:NoExecute for 300s
+Events:
+  Type    Reason     Age   From                       Message
+  ----    ------     ----  ----                       -------
+  Normal  Scheduled  99s   default-scheduler          Successfully assigned default/nla to kubernetes-slave
+  Normal  Pulled     96s   kubelet, kubernetes-slave  Container image "nlagent" already present on machine
+  Normal  Created    95s   kubelet, kubernetes-slave  Created container
+  Normal  Started    95s   kubelet, kubernetes-slave  Started container
+```
+
+
+

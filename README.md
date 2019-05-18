@@ -63,36 +63,23 @@ nlagent-modules :
 
     - module         : NLA_KNLM
 
-    - module         : NLA_NLM_CLIENT
+    - module         : NLA_FPM_CLIENT
       server-address : 127.0.0.1
       server-port    : 11111
       notify-me :
           - notify-events-from : NLA_KNLM
 
-    - module         : NLA_FPM_CLIENT
-      server-address : 127.0.0.1
-      server-port    : 22222
-      notify-me :
-          - notify-events-from : NLA_NLM_SERVER
-
     - module         : NLA_FPM_SERVER
-      server-address : 127.0.0.1
-      server-port    : 22222
-      notify-me :
-          - notify-events-from : NLA_FPM_SERVER
-
-    - module         : NLA_NLM_SERVER
       server-address : 127.0.0.1
       server-port    : 11111
       notify-me :
-          - notify-events-from : NLA_FPM_CLIENT
-
+          - notify-events-from : NLA_FPM_SERVER
 
     - module         : NLA_PRPD_CLIENT
       server-address : 10.102.177.82
-      server-port    : 40051
+      server-port    : 40055
       notify-me :
-          - notify-events-from : NLA_NLM_CLIENT
+          - notify-events-from : NLA_FPM_CLIENT
 ```
 
 
@@ -110,7 +97,6 @@ Once the build is finished, release images can be found under ship directory. Th
 * Sample build log:
 ```
 netlink-agent> ls 
-build
 Makefile
 nla_config.c
 nla_defs.h
@@ -127,7 +113,6 @@ nla_policy.c
 nla_prpd_client.c
 nla_util.c
 protos
-ship
 utils
 
 
